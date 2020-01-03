@@ -1,0 +1,250 @@
+---
+title: "Quick Intro Tutorial to R"
+author: "Meltem Odabas"
+date: "December 29, 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R and R Studio
+
+While "R is a free software environment for statistical computing and graphic", RStudio is "an integrated development environment (IDE) for R". We will use RStudio for this workshop because it is very convenient to use R with RStudio. 
+
+We are using RStudio Cloud today, however, if you want to learn how to download R and RStuio, please check the tutorials I wrote in this folder.
+
+This short tutorial will provide you some R basics what you will need to go through our workshop.
+
+## Creating elements and looking at your workspace
+You can simply define an element by using an arrow sign "<-". Below is an example that assigns value 5 to element x. Then, you can see that the element is by simply typing the element name below. 
+
+```{r}
+x<-5
+x
+```
+
+You can also print elements. 
+```{r}
+y <- "everyone"
+print(y)
+print(paste("Hello",y,"!"))
+```
+
+When you create a new element, R adds it to your workspace. RStudio makes it convenient to see what elements you have in your workspace. Check the top right corner.
+
+You can also list all the elements in your workspace by typing
+```{r}
+ls()
+```
+
+## Working directory
+Knowing what your working directory is important, especially when you need to import files, or save your results to your computer.
+
+You can check what your working directory is by typing
+```{r}
+getwd()
+```
+
+the parantheses next to "getwd" implies that getwd() is a function. We will come to that.
+
+you can change your working directory by typing
+```{r}
+setwd("D:/Projects/Git/R_for_stats_novice")
+getwd()
+```
+
+You can save your working environment (with all the elements in it!) for future use. They are called .RData files. And when you save that, unless you specify its working directory in its name, it will be saved on your working directory. 
+```{r}
+save.image(".RData")
+```
+
+You can remove all the elements from your workspace by typing
+```{r}
+rm(list=ls()) #rm(remove) everything in ls()
+```
+
+And then reload what you saved on the RData file:
+```{r}
+load(".RData")
+```
+
+##using third party packages
+We already used some functions available in base R, such as setwd(),print() and load(). However, R is an developing environment where R users can write their own functions, and share them with the rest of the community through creating packages! One example of a third-party package, which we will use in this tutorial is going to help us to plot graphs later on!
+```{r}
+install.packages("ggplot2", repos="https://cloud.r-project.org")
+library(ggplot2)
+```
+
+## Some important element types and how to create them
+
+We already created a numeric, and a character element! To see the types of the elements, use class() function:
+```{r}
+class(x)
+class(y)
+```
+
+There are other types such as 
+* __numeric__      Numeric data (approximations of the real numbers, ℝ)
+* __integer__      Integer data (whole numbers, ℤ)
+* __factor__       Categorical data (simple classifications, like gender)
+* __ordered__      Ordinal data (ordered classifications, like educational level)
+* __character__    Character data (strings)
+
+and many more!
+
+Let's see some of them in action.
+
+We already created a numeric element. How can we create a vector of numeric values?
+```{r}
+age <- c(28,45,32,56,15,3,29)
+from1to7 <- c(1:7)
+number5for7times <- rep(5,7)
+```
+Similer thing applies to character vectors
+```{r}
+gender <- c("male","male","female","nonbinary","male","female","female")
+```
+We can create a data.frame using these as column values of our observations
+__NOTE__: Do not forget to add 'stringAsFactors = FALSE' as your function parameter! The default is TRUE, and when this parameter is set to TRUE, the columns wills be converted to factors, which then will cause R to assume that these columns contain categorical variables!
+```{r}
+df <- data.frame("age"=age, "gender" = gender, "continuous"=from1to7, "i.like.number.five"=number5for7times, stringsAsFactors = FALSE)
+```
+
+And we can print our dataframe. Please note that if you have a long dataframe, use head() to see the first five observations rather than asking R to print the whole thing!
+```{r}
+df
+head(df)
+```
+
+You can see a specific part of a dataframe, by giving R the row and column numbers (or names). The left hand side of the comma must have the row numbers, and the right hand side of the comma must have the row numbers
+```{r}
+df[3,]
+df[3,3:4]
+df[1,c("age","gender")]
+```
+
+We can change cells on the dataframe conditionally. For example, let's convert all 'female's in gender to 'F', all 'male's to 'M', and all 'non-binar-ies to 'NB':
+```{r}
+df$gender
+df[,"gender"] #same with above
+which(df$gender=='female')
+df$gender[which(df$gender=='female')]
+df$gender[which(df$gender=='female')] <- 'F'
+df$gender
+df$gender[which(df$gender=='male')] <- 'M'
+df$gender[which(df$gender=='nonbinary')] <- 'NB'
+df
+```
+
+It was easy to do this by hand simply because we had only 3 categories to change. What if we were to have 100 categories to change in a vector of 1M rows? Then, maybe we would like to use for loop!
+
+#Merging Datasets
+Let's say we have another dataset, called df2, where 'from1to7' represents the user ids, and the colun name includes the names of the individuals. how can we merge df and df2?
+
+```{r}
+df2 <- data.frame('id' = c(1:7),
+                  'name'=c("Alex","Brandon","Charlie","Derek","Emily",
+                           "Fabrizio","Giovanna"), 
+                  stringsAsFactors = FALSE)
+```
+
+First step is to make sure the key variable has the same variable name in each dataset. Then, we will use merge() to do so: we will add the key variable name to the by parameter of the function.
+```{r}
+colnames(df)[which(colnames(df)=='continuous')] <- 'id'
+df <- merge(df,df2, by='id')
+head(df)
+```
+
+
+#For loop
+
+For loop runs a chunk of code multiple times. Below is an example that prints all elements of  df$gender:
+```{r}
+for (i in df$gender){
+  print(i)
+}
+```
+
+I could add a condition using 'if'. The code below prints the elements only if they are equal to 'female':
+```{r}
+for (i in df$gender){
+  if (i =='F'){ 
+    print(i)
+  }
+
+}
+```
+
+Be careful about your brackets while writing loops!
+
+I could also write the for loop so that i would refer to the index of the elements rather than the elements themselves:
+
+```{r}
+for (i in 1:length(df$gender)){ #numbers from 1 to the length of df$gender
+  if (df$gender[i] =='F'){ 
+      print(df$gender[i])
+  }
+}
+```
+
+The two loops return exactly the same values!
+
+So, let's write a loop for changing the values 'F','M' and 'NB' in df$gender to their original values:
+
+```{r}
+value1 <- c('F','M','NB')
+value2 <- c('female','male','nonbinary')
+for (i in 1:length(value1)){ #numbers from 1 to the length of df$gender
+  df$gender[which(df$gender==value1[i])] <- value2[i]
+}
+df
+```
+
+##Data Visualization
+
+Let's say we want to plot age~from1to7 on a plot. The OLD function for such plots is plot():
+```{r}
+plot(df$age,df$from1to7) #plot age on the x axis and from1to7 on the y axis
+```
+
+We can easily change the parameters too:
+
+```{r}
+plot(df$age,df$from1to7, #plot age on the x axis and from1to7 on the y axis
+     xlim=c(0, 10), ylim=c(0, max(df$age)),    #set minimum and maximum values to be seen on x and y axes
+     main="This is a test plot",                                        #add plot title
+     xlab="Numbers from one to seven in order", ylab="Population Age",                #assign x and y axis labels (the default is the variable names)
+     pch="*",                                                           #define the shape of the observations      
+     col="blue",                                                        #set the color
+     cex=4)                                                             #set  the size
+```
+
+And we can divide the graph area into two columns:
+```{r}
+par(mfrow=c(1, 2))
+plot(df$age,df$from1to7)
+plot(df$age,df$from1to7)
+```
+
+However the visualizations become harder to interpret with plot() as the data gets more complex. Therefore it is very useful to ggplot(), although changing the parameters is a bit more complex with ggplot2. I will show how to plot the exact same thing we drew above with ggplot2, however I will not go into further detail with ggplot() due to time limitations. 
+
+```{r}
+ggplot(data=df, aes(x=age,y=from1to7)) #this actually will not draw the observations!
+
+ggplot(data=df, aes(x=age,y=from1to7)) +
+  geom_point() #now we have the points!
+
+ggplot(data=df, aes(x=age,y=from1to7)) +
+  geom_point(size = 7, stroke = 0, shape = 15, color='darkblue') #point color shape and size can be changed
+
+ggplot(data=df, aes(x=age,y=gender, color=gender)) + #colors are assigned by selected category
+  geom_point(size = 7, stroke = 0, shape = 15) +
+  theme_bw()  
+
+
+```
+

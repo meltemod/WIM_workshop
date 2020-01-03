@@ -1,0 +1,413 @@
+---
+title: "WIM Workshop"
+author: "Meltem Odabas"
+date: "12/11/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+#Welcome to WIM Workshop on R for Stats!
+
+## Outline of the Workshop
+
+* How to find datasets on R?
+
+* Data Cleaning
+
+* Descriptive Statistics
+
+* (Very!) Basic data visualizations
+
+* Regression analysis + post-estimation tests
+
+
+## Before we start ... some resources
+
+__*Learning How to use R*__
+
+Swirl Lessons: https://swirlstats.com/students.html
+
+__*Importing Data*__
+Data import cheat sheet: https://github.com/rstudio/cheatsheets/raw/master/data-import.pdf
+
+__*For data cleaning*__
+
+Online textbook: https://cran.r-project.org/doc/contrib/de_Jonge+van_der_Loo-Introduction_to_data_cleaning_with_R.pdf
+
+
+__*For data summaries and data visualization*__
+gglot2 tutorial: https://jcoliver.github.io/learn-r/014-intro-summarizing-visualizing.html
+
+various packages for data summaries: https://dabblingwithdata.wordpress.com/2018/01/02/my-favourite-r-package-for-summarising-data/
+
+dot-whisker plots for regression coefficient visualization:
+https://cran.r-project.org/web/packages/dotwhisker/vignettes/dotwhisker-vignette.html
+
+
+
+## Using a readily available dataset (either in R or importing another file)
+
+To explore some datasets available in R, you can check:
+
+```{r data}
+library(MASS)
+data()
+```
+
+For today, however, we will import a .csv dataset. There are various functions available for importing a .csv dataset. Let's try them out.
+
+Ok, so, I will assign the dataset to an element called df (short for dataframe)
+```{r}
+df <- read.csv(file="evictionlab_IN.csv", stringsAsFactors = FALSE)
+```
+Let's check whether this is actually a dataframe:
+```{r}
+class(df)
+```
+And, I will ask R to read the first five rows of my dataframe by using the function head()
+```{r}
+head(df)
+```
+We can print each ro of the dataframe separately by using a dollar sign:
+```{r}
+head(df$poverty.rate)
+```
+Or we can use the following (which will bring the exact same results!)
+```{r}
+head(df[,"poverty.rate"])
+```
+And we can check the class for the column as well!
+```{r}
+class(df$poverty.rate)
+```
+
+## Looking into your dataset
+
+### Data and Variable Structure (summary stats, a little Cleaning, a little intro to 'for loops'...)
+
+You can check the variable names of your data with names(df)
+```{r}
+names(df)
+```
+
+To understand what the structure of your data is, you can simply type str(df)
+```{r}
+str(df)
+```
+
+In order to have a quick look some part of the data, you can use the head(df,n) or tail(df,n). Here n specifies the number of rows you want to see. The default for n is 5.
+
+```{r}
+head(df,7)
+tail(df,7)
+```
+
+So it seems like the observations are at year-county level. We can check the total number of observations, and which year and counties are included in the dataset:
+
+```{r}
+nrow(df) #unique number of observations
+unique(df$year) #takes the year column and shows only the unique observations -- even if there are 48351 observations of 2011, for example, we will see only one in the output...
+head(unique(df$name)) #takes the name column and shows only the unique observations
+```
+
+Clearly there is something funky with the name column... seems like there is a state level observations (i.e., indiana), a number of county-level observations (X County), Cities (Bloomington!) and some other observations identified by some numbers (???)
+Then, let's limit our analysis with all observations that has the name "County" in it. This will require some cleaning, right? Also some regular expression stuff...
+
+After some Googling, I find that grepl(value, chars) function finds whether the chars are in a string. So, for example:
+```{r}
+df$name[c(1,20,50)] #shows me the 1st, 20th and 50th observations in df$name
+df[c(1,20,50),] #shows me the 1st, 20th and 50th observations in df
+grepl("County",df$name[1])
+grepl("County",df$name[20])
+grepl("County",df$name[50])
+```
+So, if I were to use grepl() for all values in the column, I would have a vector of TRUE and FALSE values. I will just print the first 10 values of that vector:
+```{r}
+grepl("County",df$name)[1:10]
+```
+I want to keep the rows with df$name values that contains the string 'County' in it, and delete the rest. To manage this:
+```{r}
+df <- df[which(grepl("County",df$name)==TRUE),] #keep rows for county level obs. only
+head(df)
+```
+
+Yaaay! It works!
+
+So in this new version of df in which only the county-level observations are included, let's look at the summary statistics of all variables. This way we can also see whether there are any missing observations in the dataset for each variables separately.
+```{r}
+summary(df)
+```
+
+### Generating New Variables
+
+Say, we want to create year categories to summarize our variables into, let's say, 2 groups: before 2008 and after 2008: 
+```{r}
+df$year.cat <- "before.2008"
+df$year.cat[which(df$year>2008)] <- "after.2008"
+df$year.cat <- as.factor(df$year.cat)
+df$year.cat <- relevel(df$year.cat, ref = "before.2008") #take before category as the reference category
+```
+
+## Type Conversion 
+
+For instance, here you recognize that GEOID is not supposed to be numeric, so we should convert it to integer. Let's to the work on type conversion:
+```{r}
+df$GEOID <- as.factor(df$GEOID) 
+df$year <- as.factor(df$year) 
+```
+
+
+### Removing Missing Observations
+
+And the eviction variables have some missing observations. Let's remove those observations from our dataset:
+```{r}
+df <-  df[complete.cases(df), ] #complete.cases(df) finds the observations that does not have any missing values after checking all the variables. df[complete.cases(df), ] takes the subset of df that has the observations with no missing values only. and  df <-  df[complete.cases(df), ] replaces df with that subset of df, and therefore removes the observations with missing values.
+```
+
+Alternatively, you could use
+```{r}
+df <- na.omit(df)
+```
+
+Let's look at the summary statistics again:
+```{r}
+summary(df)
+```
+
+It is possible to look at summary statistics by category:
+
+```{r}
+by(df$eviction.rate, df$year.cat, summary)
+```
+
+## Identifying outliers
+
+There is a vast body of literature on outlier detection, and several definitions of outlier exist.
+
+For more or less unimodal and symmetrically distributed data, Tukey's box-and-whisker
+method for outlier detection is often appropriate. In this method, an observation is an outlier when it is larger than the so-called 'whiskers' of the set of observations. The upper whisker is computed by adding 1.5 times the interquartile range to the third quartile and rounding to the nearest lower observation. The lower whisker is computed likewise.
+```{r}
+boxplot(df$eviction.rate, plot=TRUE)
+outliers <- boxplot.stats(df$eviction.rate)
+names(outliers)
+outliers$out
+```
+
+
+### Creating tables (univariate and bivariate)
+
+###Summary Table
+
+There are various packages you can use for creating summary statistics output. One is psych.
+```{r}
+install.packages('psych',repos = "http://cran.us.r-project.org")
+library(psych)
+psych::describe(df) #similar to summary(df)
+df_desc <- psych::describeBy(df, df$year.cat) #summarizes data by category
+class(df_desc)
+names(df_desc)
+class(df_desc$after.2008)
+df_desc_before <- df_desc$before.2008[,c("n","mean","median","sd")]
+df_desc_after <- df_desc$after.2008[,c("n","mean","median","sd")]
+colnames(df_desc_before) <- paste0(colnames(df_desc_before),".before.2008")
+colnames(df_desc_after) <- paste0(colnames(df_desc_after),".after.2008")
+df_desc <- cbind(df_desc_before,df_desc_after)
+write.csv(df_desc, "summary_statistics_by_year2008.csv")
+```
+
+
+###Correlation Matrix
+cor() is the base function. for a visually more appealing version, using lowerCor() from psych pachage is also possible.
+
+```{r}
+df_corvar <- df[,c('eviction.rate','poverty.rate','median.household.income',
+                   'median.property.value','pct.white','pct.af.am','pct.asian',
+                   'pct.hispanic','pct.am.ind')]
+cor(df_corvar)
+lowerCor(df_corvar)
+```
+
+It is also possible to show correlations for two groups in one correlation matrix using psych package.
+When comparing results from two different groups, it is convenient to display them as one
+matrix, with the results from one group below the diagonal, and the other group above the
+diagonal. Use lowerUpper to do this:
+
+```{r}
+df_corvar2 <- df[,c('year.cat',
+                   'eviction.rate','poverty.rate','median.household.income',
+                   'median.property.value','pct.white','pct.af.am','pct.asian',
+                   'pct.hispanic','pct.am.ind')]
+
+before <- subset(df_corvar2,df_corvar2$year.cat=="before.2008")
+after <- subset(df_corvar2,df_corvar2$year.cat=="after.2008")
+lower <- lowerCor(before[-1])
+upper <- lowerCor(after[-1])
+both <- lowerUpper(lower,upper)
+round(both,2)
+diffs <- lowerUpper(lower,upper,diff=TRUE)
+round(diffs,2)
+write.csv(diffs, "correlation_matrix_by_year2008.csv")
+
+```
+
+We can also see correlations in a heatmap:
+```{r}
+corPlot(df_corvar,main='Correlation Matrix for all observations', diag=FALSE, upper=FALSE)
+```
+
+###Contingency tables
+To create contingency, or two-way frequency tables, you can use table(). Let's check the number of observations for each county for the two time periods: before 2008 and after 2008.
+```{r}
+mytable <- table(df$name,df$year.cat) # name will be rows, year.cat will be columns
+mytable # print table
+head(margin.table(mytable, 1)) # name frequencies (summed over year.cat)
+margin.table(mytable, 2)
+prop.table(mytable)[1:5,] # cell percentages, printing first 5 rows only
+prop.table(mytable, 1)[1:5,] # row percentages, printing first 5 rows only
+prop.table(mytable, 2)[1:5,] # column percentages, printing first 5 rows only
+```
+
+
+## Plot the data before fitting models
+
+Let's say we want to explore whether there is a relation between the eviction rate in a county and the racial characteristics of that county. (DV: eviction rate, IVs: pct.white, pct.af.am, pct.am.ind, pct.hispanic, pct.asian). Let's check whether there is some distinct correlation between those variables visually.
+
+**Note**: Although I will use plot() function for plotting purposes here, there are better plotting tools, such as the ggplot() function from the ggplot2 package. The reason why I am using plot() is mainly due to the time constraints we have. I highly recommend you to learn ggplot(), and I am adding a website that teaches ggplot2 to the resources list above. 
+
+Let's start with one example:
+
+```{r}
+install.packages("scales",repos = "http://cran.us.r-project.org")  
+library(scales) # for adding alpha parameter to the graphs
+
+plot(df$pct.white,df$eviction.rate,                                     #plot pct.white on the x axis and eviction.rate on the y axis
+     xlim=c(0, max(df$pct.white)), ylim=c(0, max(df$eviction.rate)),    #set minimum and maximum values to be seen on x and y axes
+     main="pct.white",                                                  #add plot title
+     xlab="eviction rate", ylab="% share in population",                #assign x and y axis labels (the default is the variable names)
+     pch="*",                                                           #define the shape of the observations      
+     col=alpha("red", 0.4),                                             #set the color, and level of transparency
+     cex=2)                                                             #set the size for observations                                     
+abline(lm(eviction.rate ~ pct.white, data=df),                          #after plotting, add a line y=a+xb (following a linear regression model)
+       col="blue", lwd=3, lty=2)                                        #set the color, width and shape (i.e. dashedline) of the line
+
+```
+
+
+Now let's draw 5 graphs together using a for loop!
+```{r}
+par(mfrow=c(2, 3)) #tell r to align plots by 2x3. We have 5 plots so the last one will be empty.
+ivs <- c("pct.white","pct.af.am","pct.am.ind","pct.hispanic","pct.asian")
+for (j in ivs){
+  plot(df[,j],df$eviction.rate,                                                     #changed: df[,j]
+     xlim=c(0, max(df[,j])), ylim=c(0, max(df$eviction.rate)),                      #changed: max(df[,j])
+     main=j,                                                                        #changed: j
+     xlab="eviction rate", ylab="% share in population", 
+     pch="*", 
+     col=alpha("red", 0.4),
+     cex=2)
+abline(lm(eviction.rate ~ eval(as.name(j)), data=df),                               #changed: eval(as.name(j))
+       col="blue", lwd=3, lty=2)
+}
+
+
+```
+
+Let's check how these plots change when outliers are removed:
+```{r}
+keep_rows <- which(df$eviction.rate %in% outliers$out==FALSE)
+head(keep_rows)
+df2 <- df[keep_rows,]
+par(mfrow=c(2, 3)) #tell r to align plots by 2x3. We have 5 plots so the last one will be empty.
+ivs <- c("pct.white","pct.af.am","pct.am.ind","pct.hispanic","pct.asian")
+for (j in ivs){
+  plot(df2[,j],df2$eviction.rate,                                                     #changed: df[,j]
+     xlim=c(0, max(df2[,j])), ylim=c(0, max(df2$eviction.rate)),                      #changed: max(df[,j])
+     main=j,                                                                        #changed: j
+     xlab="eviction rate", ylab="% share in population", 
+     pch="*", 
+     col=alpha("red", 0.4),
+     cex=2)
+abline(lm(eviction.rate ~ eval(as.name(j)), data=df2),                               #changed: eval(as.name(j))
+       col="blue", lwd=3, lty=2)
+}
+
+
+```
+
+
+### Regression
+
+We will take eviction.rate as the dependent variable. For a simple exercise, let's use linear regression. lm() is for OLS (ordinary least squares).
+
+```{r}
+model1 <- lm(eviction.rate ~ pct.white + pct.af.am, data=df) #generalized least squares
+summary(model1)
+plot(model1)
+```
+
+Would the results of the plots improve if we were to remove the outliers?
+```{r}
+#remember we removed outliers in df2
+model2 <- lm(eviction.rate ~ pct.white + pct.af.am, data=df2) 
+summary(model2)
+plot(model2)
+```
+
+...slightly. 
+
+Let's add poverty rate as another variable, and let's add interaction terms too:
+
+```{r}
+#remember we removed outliers in df2
+model3 <- lm(eviction.rate ~ pct.white*poverty.rate + pct.af.am*poverty.rate + poverty.rate, data=df2) 
+summary(model3)
+plot(model3)
+```
+
+let's compare nested models 2 and 3:
+```{r}
+anova(model2,model3)
+```
+
+we can also check the AIC and BIC outputs:
+
+```{r}
+AIC(model3)
+BIC(model3)
+```
+
+
+##Robust standard errors
+
+To deal with heteroskedasticity, you can ask R to estimate heteroskedasticity consistant (HC) variance covariance matrix before showing the summary output. for coeftest() function you will need lmtest package, and for vcovHC() you will need the sandwich package
+
+```{r}
+library(sandwich)
+library(lmtest)
+coeftest(model3, vcov = vcovHC(model3))
+```
+
+It’s is also easy to change the estimation method for the variance-covariance matrix:
+
+```{r}
+coeftest(model3, vcov = vcovHC(model3, type = "HC0"))
+```
+
+## Create a coefficient plot
+
+```{r}
+install.packages('dotwhisker',repos = "http://cran.us.r-project.org")
+library(dotwhisker)
+# draw a dot-and-whisker plot
+dwplot(model3) #default, 95% CI
+dwplot(model3, conf.level = .99) 
+dwplot(list(model2, model3)) #intercept is excluded by default
+dwplot(list(model2, model3), show_intercept = TRUE) #intercept is excluded by default
+dwplot(list(model2, model3), show_intercept = TRUE)+
+  theme_bw() +
+  geom_vline(xintercept = 0, colour = "grey60", linetype = 2) #bcs this is ggplot you can add parameters as in the way you would add things to any ggplot...
+
+```
+
+
